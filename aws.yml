@@ -5,3 +5,5 @@
   roles:
     - name: aws-network
       tags: aws-network
+    - name: aws-dns
+      tags: aws-dns

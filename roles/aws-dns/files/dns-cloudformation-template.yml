@@ -1,0 +1,51 @@
+Description:
+  This template create the hosted zones.
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  HostedZoneName:
+    Description: The domain name
+    Type: String
+
+Resources:
+  DNS: 
+    Type: "AWS::Route53::HostedZone"
+    Properties: 
+      HostedZoneConfig: 
+        Comment: !Sub "Public ${HostedZoneName} hosted zone for ${EnvironmentName}"
+      Name: !Ref HostedZoneName
+
+  PrivateDNS: 
+    Type: "AWS::Route53::HostedZone"
+    Properties: 
+      HostedZoneConfig: 
+        Comment: !Sub "Private ${HostedZoneName} hosted zone for ${EnvironmentName}"
+      Name: !Ref HostedZoneName
+      VPCs: 
+        - 
+          VPCId: 
+            Fn::ImportValue: !Sub '${EnvironmentName}-VPC-ID'
+          VPCRegion: "eu-central-1"
+
+
+Outputs:
+  Id:
+    Description: The id of the hosted zone
+    Value: !Ref DNS
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-HostedZone-ID
+  PrivateId:
+    Description: The id of the private hosted zone
+    Value: !Ref PrivateDNS
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-Private-HostedZone-ID
+  Name:
+    Description: The name of the hosted zone
+    Value: !Ref HostedZoneName
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-HostedZone-Name
