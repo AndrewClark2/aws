@@ -1,0 +1,68 @@
+Description: >
+  This template deploys an Application Load Balancer
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+Resources:
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${EnvironmentName}-ALB'
+      Subnets: 
+        - Fn::ImportValue: !Sub '${EnvironmentName}-PublicSubnet1-ID'
+        - Fn::ImportValue: !Sub '${EnvironmentName}-PublicSubnet2-ID'
+      SecurityGroups:
+        - Fn::ImportValue: !Sub '${EnvironmentName}-PublicServerSecurityGroup-ID'
+        - Fn::ImportValue: !Sub '${EnvironmentName}-ExoscaleAccessSecurityGroup-ID'
+        - Fn::ImportValue: !Sub '${EnvironmentName}-SBBAccessSecurityGroup-ID'
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  Listener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      Certificates: 
+        - CertificateArn: 'arn:aws:acm:eu-central-1:093633553668:certificate/b065f07b-0286-4cbe-9dd4-edc917deae65'
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: text/plain
+            MessageBody: "Listener rule not found in ALB"
+            StatusCode: 503
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: '443'
+      Protocol: HTTPS
+
+Outputs:
+
+  LoadBalancer:
+    Description: The the ALB
+    Value: !Ref LoadBalancer
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-ALB
+
+  LoadBalancerDNSName:
+    Description: The URL of the ALB
+    Value: !GetAtt LoadBalancer.DNSName
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-ALB-DNSName
+
+  LoadBalancerHostedZone:
+    Description: The the ALB
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-ALB-HostedZone
+
+  Listener:
+    Description: The the ALB Listener
+    Value: !Ref Listener
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-ALB-Listener
+
