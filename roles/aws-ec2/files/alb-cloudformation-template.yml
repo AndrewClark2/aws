@@ -6,6 +6,13 @@ Parameters:
     Type: String
 
 Resources:
+  # TODO This need working on :-(
+  # ALBCertificate:
+  #   Type: AWS::CertificateManager::Certificate
+  #   Properties:
+  #     DomainName: 
+  #       Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+            
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -15,8 +22,6 @@ Resources:
         - Fn::ImportValue: !Sub '${EnvironmentName}-PublicSubnet2-ID'
       SecurityGroups:
         - Fn::ImportValue: !Sub '${EnvironmentName}-PublicServerSecurityGroup-ID'
-        - Fn::ImportValue: !Sub '${EnvironmentName}-ExoscaleAccessSecurityGroup-ID'
-        - Fn::ImportValue: !Sub '${EnvironmentName}-SBBAccessSecurityGroup-ID'
       Tags:
         - Key: Environment
           Value: !Ref EnvironmentName
@@ -25,7 +30,7 @@ Resources:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
       Certificates: 
-        - CertificateArn: 'arn:aws:acm:eu-central-1:093633553668:certificate/b065f07b-0286-4cbe-9dd4-edc917deae65'
+        - CertificateArn: 'arn:aws:acm:eu-central-1:850490986258:certificate/5959b9c0-25cf-4ce0-8084-3f6da68f5c73'
       DefaultActions:
         - Type: fixed-response
           FixedResponseConfig:
@@ -65,4 +70,3 @@ Outputs:
     Export :
       Name : 
         Fn::Sub: ${EnvironmentName}-ALB-Listener
-

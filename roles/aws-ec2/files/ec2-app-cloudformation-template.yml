@@ -15,7 +15,6 @@ Parameters:
   InstanceName:
     Description: The instance name 
     Type: String
-    Default: webserver
     
   ImageId:
     Description: The AMI to install 
@@ -26,39 +25,25 @@ Parameters:
     Description: The SSH key to install, this is used for the initial deployment. 
     Type: String
         
-  NetworkScope:
-    Description: Scope of subnet of the instance 
-    Type: String
-    Default: Public
-    AllowedValues:
-    - 'Public'
-    - 'Private'
-
   ApplicationPort:
-    Description: If a web application is running (HTTP), the port it uses. 
+    Description: Web application is running (HTTP), the port it uses. 
     Type: String
-    Default: None
 
   ApplicationRoutingPriority:
-    Description: If a web application is running (HTTP), then its routing priority. Must be unique 
+    Description: "Web application needs ALB routing priority. Must be unique"
     Type: String
     Default: 1
-
-Conditions: 
-  IsPublic: !Equals [ !Ref NetworkScope, 'Public' ]
-  IsPrivate: !Equals [ !Ref NetworkScope, 'Private' ]
-  HasApplication: !Not [ !Equals [ !Ref ApplicationPort, 'None' ] ]
 
 Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
       SubnetId: 
-        Fn::ImportValue: !Sub '${EnvironmentName}-${NetworkScope}Subnet1-ID'
+        Fn::ImportValue: !Sub '${EnvironmentName}-PrivateSubnet1-ID'
       InstanceType:
         Ref: InstanceType
       SecurityGroupIds:
-       - Fn::ImportValue: !Sub '${EnvironmentName}-${NetworkScope}ServerSecurityGroup-ID'
+       - Fn::ImportValue: !Sub '${EnvironmentName}-PrivateServerSecurityGroup-ID'
       ImageId: !Ref ImageId 
       KeyName: !Ref KeyName
       Tags:
@@ -70,27 +55,8 @@ Resources:
           Value: 
             Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
 
-  # TODO create controller public DNS in another stack
-  # PublicDNSRecord:
-  #   Type: AWS::Route53::RecordSet
-  #   Condition: HasPublicDNS
-  #   Properties:
-  #     HostedZoneId: 
-  #       Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-ID'
-  #     Comment: !Sub 'Private DNS name for ${InstanceName} instance'
-  #     Name: 
-  #       Fn::Join:
-  #         - "."
-  #         - - !Ref InstanceName
-  #           - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
-  #     Type: A
-  #     TTL: '300'
-  #     ResourceRecords:
-  #       - !GetAtt EC2Instance.PublicIp
-
   PrivateDNSRecord:
     Type: AWS::Route53::RecordSet
-    Condition: IsPrivate
     Properties:
       HostedZoneId: 
         Fn::ImportValue: !Sub '${EnvironmentName}-Private-HostedZone-ID'
@@ -107,7 +73,6 @@ Resources:
 
   TargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
-    Condition: HasApplication
     Properties:
       Name: !Ref InstanceName
       Port: !Ref ApplicationPort
@@ -120,7 +85,6 @@ Resources:
 
   ListenerRule:
     Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
-    Condition: HasApplication
     Properties:
       Actions:
         - Type: forward
@@ -129,31 +93,19 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values: 
-              - !Join [ '.', [ !Ref InstanceName, "paranor.cloud" ] ]
-# TODO read paranor.cloud !
-#               - Fn::Join:
-#                   - "."
-# #                  - "awap-test"
-#                     - !Sub "${InstanceName}"
-# #                  - "paranor.cloud"
-#                     - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+            - !Ref PrivateDNSRecord
       ListenerArn: 
         Fn::ImportValue: !Sub '${EnvironmentName}-ALB-Listener'
       Priority: !Ref ApplicationRoutingPriority
 
   DNSRecordALB:
     Type: AWS::Route53::RecordSetGroup
-    Condition: HasApplication
     Properties:
       HostedZoneId: 
         Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-ID'
       Comment: !Sub 'Public DNS name for ${InstanceName} instance'
       RecordSets:
-      - Name: 
-          Fn::Join:
-            - "."
-            - - !Ref InstanceName
-              - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+      - Name: !Ref PrivateDNSRecord
         Type: A
         AliasTarget:
           HostedZoneId: 
@@ -164,18 +116,18 @@ Resources:
               - - 'dualstack'
                 - Fn::ImportValue: !Sub '${EnvironmentName}-ALB-DNSName'
 
-Outputs:
-  InstanceId:
-    Description: InstanceId of the newly created EC2 instance
-    Value: 
-      Ref: EC2Instance
-    Export :
-      Name : 
-        Fn::Sub: ${EnvironmentName}-${InstanceName}-Instance-ID
+# Outputs:
+#   InstanceId:
+#     Description: InstanceId of the newly created EC2 instance
+#     Value: 
+#       Ref: EC2Instance
+#     Export :
+#       Name : 
+#         Fn::Sub: ${EnvironmentName}-${InstanceName}-Instance-ID
 
-  PrivateIP:
-    Description: Private IP address of the newly created EC2 instance
-    Value: !GetAtt EC2Instance.PrivateIp
-    Export :
-      Name : 
-        Fn::Sub: ${EnvironmentName}-${InstanceName}-PrivateIp
+#   PrivateIP:
+#     Description: Private IP address of the newly created EC2 instance
+#     Value: !GetAtt EC2Instance.PrivateIp
+#     Export :
+#       Name : 
+#         Fn::Sub: ${EnvironmentName}-${InstanceName}-PrivateIp

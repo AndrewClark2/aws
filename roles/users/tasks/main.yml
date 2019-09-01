@@ -1,0 +1,76 @@
+---
+- name: create groups
+  group:
+    name: "{{ item.group }}"
+    gid: "{{ item.gid }}"
+    state: "{{ item.state }}"
+  with_items: "{{ usergroups }}"
+ 
+- name: create interactive users
+  user:
+    name: "{{ item.user }}"
+    groups: "{{ item.groups }}"
+    comment: "{{ item.comment }}"
+    uid: "{{ item.uid }}"
+    state: "{{ item.state }}"
+#    password: "{{ item.password }}"
+    generate_ssh_key: yes
+    append: yes
+  with_items: "{{ users }}"
+
+- name: Set authorized key of user from public key files
+  authorized_key:
+    user: "{{ item.user }}"
+    state: "{{ item.state }}"
+    key: "{{ lookup('pipe','cat {{ role_path }}/files/{{ item.user }}/public_keys/*.pub') }}"
+  with_items: "{{ users }}"
+
+- name: Make sure we have a 'wheel' group
+  group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: visudo -cf %s
+
+- name: Add sudoers users to wheel group
+  user:
+    name: "{{ item.user }}"
+    groups: wheel
+    append: yes
+  with_items: "{{ users }}"
+
+
+# - name: copy home directory content
+#  copy:
+#   src: "files/{{ item.user }}/"
+#   dest: "/home/{{ item.user }}"
+#   group: "{{ item.user }}"
+#   owner: "{{ item.user }}"
+# with_items: "{{ users }}"
+# ignore_errors: yes
+
+# - name: set ssh permissions
+#   file:
+#     path:  "/home/{{ item.user}}/.ssh/authorized_keys"
+#     mode: "0600"
+#   with_items: "{{ users }}"
+#   ignore_errors: yes
+
+# - name: set ssh directory permissions
+#   file:
+#     path: "/home/{{ item.user }}/.ssh"
+#     mode: 0700
+#   with_items: "{{ users }}"
+#   ignore_errors: yes
+
+# - name: create sudoers file for sudo all
+#   template:
+#     src: templates/sudo_all_nopasswd.j2
+#     dest: /etc/sudoers.d/sudo_all_nopasswd
+#     mode: 44
