@@ -1,0 +1,51 @@
+---
+
+- name: install ansible public key
+  ec2_key:
+    name: ansible_key
+    key_material: "{{ lookup('file', 'id_rsa_ansible.pub') }}"
+    region: "eu-central-1"
+
+    aws_access_key: "{{aws_access_key}}"
+    aws_secret_key: "{{aws_secret_key}}"
+  tags: ec2-key
+
+- name: create the ec2 controller cloudformation stack
+  cloudformation:
+    stack_name: 'xerian-ec2-controller'
+    state: "present"
+    region: "eu-central-1"
+    disable_rollback: true
+    template: "roles/aws-ec2/files/ec2-cloudformation-template.yml"
+    template_parameters:
+      EnvironmentName: Xerian
+      InstanceName: controller
+      InstanceType: t3.nano
+      NetworkScope: Public
+      ImageId: ami-04cf43aca3e6f3de3 # CentOS Linux 7 x86_64 HVM EBS ENA 1901_01
+      KeyName: "{{ keyname | default('ansible_key') }}"
+
+    aws_access_key: "{{aws_access_key}}"
+    aws_secret_key: "{{aws_secret_key}}"
+  tags: ec2-controller
+
+- name: create the ec2 build cloudformation stack
+  cloudformation:
+    stack_name: 'xerian-ec2-build'
+    state: "present"
+    region: "eu-central-1"
+    disable_rollback: true
+    template: "roles/aws-ec2/files/ec2-cloudformation-template.yml"
+    template_parameters:
+      EnvironmentName: Xerian
+      InstanceName: build
+      InstanceType: t3.small
+      NetworkScope: Private
+      ImageId: ami-04cf43aca3e6f3de3 # CentOS Linux 7 x86_64 HVM EBS ENA 1901_01
+      KeyName: "{{ keyname | default('ansible_key') }}"
+      ApplicationRoutingPriority: 4
+      ApplicationPort: 8080
+
+    aws_access_key: "{{aws_access_key}}"
+    aws_secret_key: "{{aws_secret_key}}"
+  tags: ec2-build

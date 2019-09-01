@@ -238,41 +238,78 @@ Resources:
 #       DestinationCidrBlock: 0.0.0.0/0
 #       GatewayId: !Ref InternetGateway
 
-#   NoIngressSecurityGroup:
-#     Type: AWS::EC2::SecurityGroup
-#     Properties:
-#       GroupName: "no-ingress-sg"
-#       GroupDescription: "Security group with no ingress rule"
-#       VpcId: !Ref VPC
-#       Tags:
-#         - Key: Name
-#           Value: !Sub ${EnvironmentName} NoIngress SG 
+  NoIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "no-ingress-sg"
+      GroupDescription: "Security group with no ingress rule"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} NoIngress SG 
 
-#   PublicServerSecurityGroup:
-#     Type: AWS::EC2::SecurityGroup
-#     Properties:
-#       GroupName: "public-server-sg"
-#       GroupDescription: "General server security group with internet access"
-#       VpcId: !Ref VPC
-#       Tags:
-#         - Key: Name
-#           Value: !Sub ${EnvironmentName} Public SG 
+  PublicServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "public-server-sg"
+      GroupDescription: "General server security group with internet access"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - Description: "HTTP Access from EVERWHERE"
+        IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - Description: "HTTPS Access from EVERWHERE"
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public SG 
 
+  BastionServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "bastion-sg"
+      GroupDescription: "Bastion security group with ssh access"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - Description: "SSH Access from EVERWHERE"
+        IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Bastion SG 
 
-#       # SourcePrefixListId: String
-#       # SourceSecurityGroupName: String
-#       # SourceSecurityGroupId: String
-#       # SourceSecurityGroupOwnerId: String
+  PrivateServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "private-server-sg"
+      GroupDescription: "General server security group without internet access"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - Description: "SSH Access from bastion"
+        IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        SourceSecurityGroupId: !Ref BastionServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private SG 
 
-#   PrivateServerSecurityGroup:
-#     Type: AWS::EC2::SecurityGroup
-#     Properties:
-#       GroupName: "private-server-sg"
-#       GroupDescription: "General server security group without internet access"
-#       VpcId: !Ref VPC
-#       Tags:
-#         - Key: Name
-#           Value: !Sub ${EnvironmentName} Private SG 
+  PrivateServerSecurityGroupIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: 
+      Description: "Full access other servers in private SN"
+      GroupId: !Ref PrivateServerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref PrivateServerSecurityGroup
 
 #   RDSDBServerSecurityGroup:
 #     Type: AWS::EC2::SecurityGroup
@@ -467,19 +504,19 @@ Outputs:
 #     Export :
 #       Name : NoIngressSecurityGroup-ID
 
-#   PublicServerSecurityGroup:
-#     Description: Public security group 
-#     Value: !Ref PublicServerSecurityGroup
-#     Export :
-#       Name : 
-#         Fn::Sub: ${EnvironmentName}-PublicServerSecurityGroup-ID
+  PublicServerSecurityGroup:
+    Description: Public security group 
+    Value: !Ref PublicServerSecurityGroup
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-PublicServerSecurityGroup-ID
 
-#   PrivateServerSecurityGroup:
-#     Description: Private security group
-#     Value: !Ref PrivateServerSecurityGroup
-#     Export :
-#       Name : 
-#         Fn::Sub: ${EnvironmentName}-PrivateServerSecurityGroup-ID
+  PrivateServerSecurityGroup:
+    Description: Private security group
+    Value: !Ref PrivateServerSecurityGroup
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-PrivateServerSecurityGroup-ID
 
 #   RDSDBServerSecurityGroup:
 #     Description: RDS DB security group

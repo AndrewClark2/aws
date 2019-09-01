@@ -7,3 +7,5 @@
       tags: aws-network
     - name: aws-dns
       tags: aws-dns
+    - name: aws-ec2
+      tags: aws-ec2
