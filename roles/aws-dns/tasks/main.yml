@@ -9,7 +9,7 @@
     template: "roles/aws-dns/files/dns-cloudformation-template.yml"
     template_parameters:
       EnvironmentName: Xerian
-      HostedZoneName: xerian.com
+      HostedZoneName: cloud.xerian.com
 
     tags:
       Stack: "xerian-dns"
