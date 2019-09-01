@@ -1,0 +1,13 @@
+users:
+  - user: 'andrew'
+    comment: 'Andrew Clark'
+    email: 'andrew.clark@paranor.ch'
+    groups: provisioning
+    uid: 1001
+    state: present
+
+usergroups:
+  - group: 'provisioning'
+    gid: 11001
+    state: present
+  

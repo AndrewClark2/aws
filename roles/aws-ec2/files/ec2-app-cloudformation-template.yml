@@ -1,0 +1,133 @@
+Description:
+  This template deploys a public and private server instances.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+    Default: Paranor
+
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro # Free tier
+
+  InstanceName:
+    Description: The instance name 
+    Type: String
+    
+  ImageId:
+    Description: The AMI to install 
+    Type: String
+    Default: ami-0ebe657bc328d4e82  # Amazon Linux 2 AMI (HVM), SSD Volume Type
+
+  KeyName:
+    Description: The SSH key to install, this is used for the initial deployment. 
+    Type: String
+        
+  ApplicationPort:
+    Description: Web application is running (HTTP), the port it uses. 
+    Type: String
+
+  ApplicationRoutingPriority:
+    Description: "Web application needs ALB routing priority. Must be unique"
+    Type: String
+    Default: 1
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-PrivateSubnet1-ID'
+      InstanceType:
+        Ref: InstanceType
+      SecurityGroupIds:
+       - Fn::ImportValue: !Sub '${EnvironmentName}-PrivateServerSecurityGroup-ID'
+      ImageId: !Ref ImageId 
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName 
+        - Key: Name
+          Value: !Ref InstanceName 
+        - Key: HostName
+          Value: 
+            Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+
+  PrivateDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-Private-HostedZone-ID'
+      Comment: !Sub 'Private DNS name for ${InstanceName} instance'
+      Name: 
+        Fn::Join:
+          - "."
+          - - !Ref InstanceName
+            - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+      Type: A
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt EC2Instance.PrivateIp
+
+  TargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: !Ref InstanceName
+      Port: !Ref ApplicationPort
+      Protocol: HTTP
+      Targets: 
+        - Id: !Ref EC2Instance
+      TargetType: 'instance'
+      VpcId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-VPC-ID'
+
+  ListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values: 
+            - !Ref PrivateDNSRecord
+      ListenerArn: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-ALB-Listener'
+      Priority: !Ref ApplicationRoutingPriority
+
+  DNSRecordALB:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-ID'
+      Comment: !Sub 'Public DNS name for ${InstanceName} instance'
+      RecordSets:
+      - Name: !Ref PrivateDNSRecord
+        Type: A
+        AliasTarget:
+          HostedZoneId: 
+            Fn::ImportValue: !Sub '${EnvironmentName}-ALB-HostedZone'
+          DNSName: 
+            Fn::Join:
+              - '.'
+              - - 'dualstack'
+                - Fn::ImportValue: !Sub '${EnvironmentName}-ALB-DNSName'
+
+# Outputs:
+#   InstanceId:
+#     Description: InstanceId of the newly created EC2 instance
+#     Value: 
+#       Ref: EC2Instance
+#     Export :
+#       Name : 
+#         Fn::Sub: ${EnvironmentName}-${InstanceName}-Instance-ID
+
+#   PrivateIP:
+#     Description: Private IP address of the newly created EC2 instance
+#     Value: !GetAtt EC2Instance.PrivateIp
+#     Export :
+#       Name : 
+#         Fn::Sub: ${EnvironmentName}-${InstanceName}-PrivateIp

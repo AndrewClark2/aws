@@ -1,0 +1,79 @@
+Description:
+  This template deploys a public and private server instances.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro # Free tier
+
+  InstanceName:
+    Description: The instance name 
+    Type: String
+    Default: webserver
+
+  ImageId:
+    Description: The AMI to install 
+    Type: String
+    Default: ami-0ebe657bc328d4e82  # Amazon Linux 2 AMI (HVM), SSD Volume Type
+
+  KeyName:
+    Description: The SSH key to install, this is used for the initial deployment. 
+    Type: String
+        
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-PublicSubnet1-ID'
+      InstanceType:
+        Ref: InstanceType
+      SecurityGroupIds:
+       - Fn::ImportValue: !Sub '${EnvironmentName}-BastionSecurityGroup-ID'
+      ImageId: !Ref ImageId 
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName 
+        - Key: Name
+          Value: !Ref InstanceName 
+        - Key: HostName
+          Value: 
+            Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+
+  PublicDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-ID'
+      Comment: !Sub 'Public DNS name for ${InstanceName} instance'
+      Name: 
+        Fn::Join:
+          - "."
+          - - !Ref InstanceName
+            - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+      Type: A
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt EC2Instance.PublicIp
+
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: 
+      Ref: EC2Instance
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-${InstanceName}-Instance-ID
+
+  PublicIp:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt EC2Instance.PublicIp
+    Export :
+      Name : 
+        Fn::Sub: ${EnvironmentName}-${InstanceName}-PublicIp

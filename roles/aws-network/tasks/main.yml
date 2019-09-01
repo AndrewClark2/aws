@@ -1,0 +1,22 @@
+---
+
+- name: create the network cloudformation stack
+  cloudformation:
+    stack_name: "xerian-network"
+    state: "present"
+    region: "eu-central-1"
+    disable_rollback: true
+    template: "roles/aws-network/files/network-cloudformation-template.yml"
+    template_parameters:
+      EnvironmentName: Xerian
+      PrivateSubnet1CIDR: 10.192.20.0/24
+      PrivateSubnet2CIDR: 10.192.21.0/24
+      PublicSubnet1CIDR: 10.192.10.0/24
+      PublicSubnet2CIDR: 10.192.11.0/24
+      VpcCIDR: 10.192.0.0/16
+
+    tags:
+      Stack: "xerian-network"
+
+    aws_access_key: "{{aws_access_key}}"
+    aws_secret_key: "{{aws_secret_key}}"
