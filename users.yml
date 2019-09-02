@@ -1,0 +1,17 @@
+---
+
+- hosts: localhost
+  tasks:
+  - name: copy local ssh key
+    copy:
+      src: roles/aws-ec2/files/id_rsa_ansible
+      dest: ~/.ssh/
+      mode: '0600'
+
+- hosts: all
+
+  become: true
+
+  roles:
+    - name: users
+      tags: users
