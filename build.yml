@@ -1,0 +1,10 @@
+---
+- hosts: build
+
+  become: true
+
+  roles:
+    - name: base
+      tags: base
+    - name: users
+      tags: users
