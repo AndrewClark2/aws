@@ -1,0 +1,62 @@
+---
+
+- name: set timezone to Europe/Zurich
+  timezone:
+    name: Europe/Zurich
+
+# Locale en_US makes sense for our technical level
+# We want to get rid of the message "Failed to set locale, defaulting to C"
+- name: define locale
+  blockinfile:
+    path: /etc/environment
+    block: |
+      LANG=en_US.UTF-8
+      LC_ALL=en_US.UTF-8
+
+# Set hostname, we want to use the Ansible hostname not the ip based one assigned by AWS
+# (this means these instances are pets not livestock!)
+# we ignore ip 'hostnames' this allows us to use ip's in our inventory if we wish to
+- name: ensure hostname set
+  hostname: name={{ inventory_hostname }}
+  when: not inventory_hostname is match('(\d{1,3}\.){3}\d{1,3}')
+
+# Check if we should update the installation
+- name: check for updates (yum)
+  yum:
+    list: updates
+    update_cache: true
+  register: yumoutput
+
+# When we first install the OS we do a general update as this is good practice
+# We do not do this every time as on a running system we may not want updates
+# This means we may have different base packages on different systems, and a reinstall from scratch
+# may end up with different base packages. 
+- name: upgrade all installed packages
+  command: "yum update -y"
+  args:
+    warn: no
+  when: yumoutput.results|length > 0
+
+# # Always install security updates
+# - name: install security updates
+#   command: "yum -y update --security"
+#   args:
+#     warn: no
+#   register: script_res
+#   changed_when: "'No packages needed for security' not in script_res.stdout"
+
+# Installs the 'base' toolset, this includes all tools
+# used on ALL nodes 
+- name: install admin tools 
+  yum:
+    name: 
+      - screen
+      - nmap
+      - vim
+      - bash-completion
+      - mc
+ # this comes from epel which we don't currently install on all nodes   - htop
+      - iotop
+      - telnet
+    state: present
+    

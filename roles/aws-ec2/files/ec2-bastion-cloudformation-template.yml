@@ -62,6 +62,22 @@ Resources:
       ResourceRecords:
         - !GetAtt EC2Instance.PublicIp
 
+  PrivateDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}-Private-HostedZone-ID'
+      Comment: !Sub 'Private DNS name for ${InstanceName} instance'
+      Name: 
+        Fn::Join:
+          - "."
+          - - !Ref InstanceName
+            - Fn::ImportValue: !Sub '${EnvironmentName}-HostedZone-Name'
+      Type: A
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt EC2Instance.PrivateIp
+
 Outputs:
   InstanceId:
     Description: InstanceId of the newly created EC2 instance
